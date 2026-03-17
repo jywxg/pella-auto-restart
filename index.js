@@ -159,7 +159,7 @@ async function startServer(token, serverId) {
 
 // ===== 重启 =====
 async function restartServer(token, serverId) {
-  return fetch("https://api.pella.app/server/redeploy", {
+  const res = await fetch("https://api.pella.app/server/redeploy", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -168,8 +168,24 @@ async function restartServer(token, serverId) {
     },
     body: JSON.stringify({ serverId })
   });
-}
 
+  const text = await res.text();
+
+  console.log("🔄 restart 返回:", text);
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    body: text
+  };
+}
+const result = await restartServer(token, server.id);
+
+if (!result.ok) {
+  report.push(`❌ ${account.email} ${server.id} 重启失败 (${result.status})`);
+} else {
+  report.push(`🔄 ${account.email} ${server.id} 已发送重启请求`);
+}
 // ===== 主逻辑 =====
 async function processAccount(account) {
   let report = [];
