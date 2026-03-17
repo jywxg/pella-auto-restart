@@ -19,7 +19,7 @@ jobs:
           node-version: 20
 
       - name: 📦 安装环境
-      run: npm install node-fetch form-data
+      run: npm install 
    
       - name: 🚀 运行
         run: node index.js
