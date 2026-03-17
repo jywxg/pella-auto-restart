@@ -1,12 +1,12 @@
-name: Pella Browser Automation
+name: Pella UI Automation
 
 on:
   repository_dispatch:
     types: [pella_trigger]
-  workflow_dispatch: # 方便你在 GitHub 手动点击测试
+  workflow_dispatch:
 
 jobs:
-  browser-click:
+  pella-click:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,14 +17,15 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Playwright
+      # --- 关键修改部分开始 ---
+      - name: Install Dependencies
         run: |
-          pip install playwright
+          pip install playwright requests
           playwright install chromium
+      # --- 关键修改部分结束 ---
 
-      - name: Run Pella Automation
+      - name: Run Script
         env:
-          # 在 GitHub Secrets 中设置这些变量
           ACCOUNT_JSON: ${{ secrets.ACCOUNT_JSON }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
