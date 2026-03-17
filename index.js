@@ -126,31 +126,24 @@ async function login(email, password) {
 
 // ===== 获取服务器 =====
 async function getServers(token) {
-  const res = await fetch("https://api.pella.app/server/list", {
+  const response = await fetch('https://api.pella.app/user/servers', {
+    method: 'GET',
     headers: {
-      "Authorization": `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Origin': 'https://www.pella.app',
+      'Referer': 'https://www.pella.app/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
   });
-
-  const text = await res.text();
-
-  console.log("📦 server/list 原始返回:", text.slice(0, 300));
-
-  if (text.startsWith("<!DOCTYPE")) {
-    throw new Error("server/list 被拦截（Cloudflare）");
+  
+  if (!response.ok) {
+    throw new Error(`获取服务器列表失败: ${response.status}`);
   }
-
-  const data = JSON.parse(text);
-
-  // 🔥 兼容不同结构
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data.data)) return data.data;
-  if (Array.isArray(data.servers)) return data.servers;
-
-  // ❗ 如果不是数组，直接报错
-  throw new Error("server/list 返回异常: " + text.slice(0, 200));
+  
+  const data = await response.json();
+  return data.servers || [];
 }
-
 // ===== 启动 =====
 async function startServer(token, serverId) {
   return fetch("https://api.pella.app/server/start", {
