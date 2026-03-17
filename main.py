@@ -23,7 +23,6 @@ async def solve_pella():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        # 模拟真实浏览器特征
         context = await browser.new_context(
             viewport={'width': 1280, 'height': 800},
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -33,47 +32,63 @@ async def solve_pella():
         for acc in accounts:
             page = await context.new_page()
             try:
-                print(f"🚀 正在登录: {acc['email']}")
-                await page.goto("https://pella.app/login", wait_until="networkidle")
+                print(f"🚀 正在打开登录页: {acc['email']}")
+                await page.goto("https://pella.app/login", wait_until="networkidle", timeout=60000)
                 
                 # --- 第一步：输入邮箱 ---
-                # 对应你截图中红框的 Email address 输入框
-                await page.fill('input[type="email"]', acc['email'])
-                # 点击 Continue 按钮
-                await page.click('button:has-text("Continue")')
+                # 尝试多种定位方式，确保能找到输入框
+                email_input = page.get_by_label("Email address")
+                if await email_input.count() == 0:
+                    email_input = page.locator('input[type="email"]')
+                
+                await email_input.wait_for(state="visible", timeout=30000)
+                await email_input.fill(acc['email'])
+                
+                # 点击 Continue
+                await page.get_by_role("button", name="Continue").click()
                 
                 # --- 第二步：输入密码 ---
-                # 等待密码输入框出现
-                await page.wait_for_selector('input[type="password"]', timeout=15000)
-                await page.fill('input[type="password"]', acc['password'])
-                # 再次点击 Continue 登录
-                await page.click('button:has-text("Continue")')
+                print("  等待密码输入框...")
+                pwd_input = page.get_by_label("Password")
+                await pwd_input.wait_for(state="visible", timeout=20000)
+                await pwd_input.fill(acc['password'])
+                
+                # 再次点击 Continue
+                await page.get_by_role("button", name="Continue").click()
                 
                 # --- 第三步：进入面板并点击 ---
-                await page.wait_for_url("**/dashboard**", timeout=30000)
-                await asyncio.sleep(8) # 等待列表完全加载
-                
-                # 查找所有可用按钮
-                all_buttons = await page.get_by_role("button").all()
+                print("  正在跳转 Dashboard...")
+                await page.wait_for_url("**/dashboard**", timeout=40000)
+                await asyncio.sleep(10) # 给予充足的列表渲染时间
+
+                # 查找 START 或 RESTART 按钮
+                # 使用正则表达式忽略大小写，匹配你截图中的所有可能按钮
+                buttons = page.get_by_role("button")
+                btn_count = await buttons.count()
                 clicked = 0
-                for btn in all_buttons:
-                    txt = (await btn.inner_text()).upper()
-                    if "START" in txt or "RESTART" in txt:
-                        print(f"  点击按钮: {txt}")
+                
+                for i in range(btn_count):
+                    btn = buttons.nth(i)
+                    text = await btn.inner_text()
+                    if any(x in text.upper() for x in ["START", "RESTART"]):
+                        print(f"  发现按钮并点击: {text}")
                         await btn.click()
                         clicked += 1
-                        await asyncio.sleep(3)
-                
-                report.append(f"👤 {acc['email']}: ✅ 已点击 {clicked} 个服务")
+                        await asyncio.sleep(5) # 每次点击后等待一下防止冲突
+
+                report.append(f"👤 {acc['email']}: ✅ 成功处理 {clicked} 个服务")
+            
             except Exception as e:
-                print(f"操作失败: {e}")
-                report.append(f"👤 {acc['email']}: ❌ 失败 (界面可能已变动)")
+                # 失败时保存截图到本地目录（GitHub Action 结束后会销毁，但可以在日志看到路径）
+                await page.screenshot(path=f"error_{acc['email']}.png")
+                print(f"❌ {acc['email']} 操作失败: {str(e)}")
+                report.append(f"👤 {acc['email']}: ❌ 失败 (已保存错误截图)")
             finally:
                 await page.close()
 
         await browser.close()
         if report:
-            send_tg("🔔 <b>Pella 自动化执行报告</b>\n\n" + "\n".join(report))
+            send_tg("🔔 <b>Pella UI 自动化报告</b>\n\n" + "\n".join(report))
 
 if __name__ == "__main__":
     asyncio.run(solve_pella())
