@@ -21,8 +21,9 @@ jobs:
         run: |
           pip install requests
 
-      - name: Run Pella Script
+- name: Run Maintenance Script
         env:
-          ACCOUNT_JSON: ${{ secrets.ACCOUNT_JSON }} # 在 GitHub Secrets 中设置
-        run: |
-          python main.py # 运行你之前的 Python 脚本
+          ACCOUNT_JSON: ${{ secrets.ACCOUNT_JSON }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}  # 新增
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}      # 新增
+        run: python main.py
