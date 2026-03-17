@@ -187,7 +187,7 @@ async function processAccount(account) {
       try {
         console.log("👉 处理:", server.id, server.status);
 
-        if (server.status === "STOPPED") {
+        if (server.status === "OFFLINE") {
           await startServer(token, server.id);
           report.push(`🟢 ${account.email} 启动 ${server.id}`);
         } else {
