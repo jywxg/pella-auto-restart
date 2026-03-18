@@ -86,7 +86,9 @@ async function getServers(token) {
 // ===== start（改成 form-data）=====
 async function startServer(token, serverId) {
   const form = new FormData();
-  form.append("serverId", serverId);
+
+  // 🔥 同样是 id
+  form.append("id", serverId);
 
   const res = await fetch("https://api.pella.app/server/start", {
     method: "POST",
@@ -104,11 +106,14 @@ async function startServer(token, serverId) {
 
   return res.ok;
 }
-
 // ===== restart（改成 form-data）=====
+import FormData from "form-data";
+
 async function restartServer(token, serverId) {
   const form = new FormData();
-  form.append("serverId", serverId);
+
+  // 🔥 关键：必须是 id
+  form.append("id", serverId);
 
   const res = await fetch("https://api.pella.app/server/redeploy", {
     method: "POST",
@@ -166,11 +171,16 @@ async function processAccount(account) {
 
         console.log("🧪 操作后状态:", updated?.status);
 
-        if (!updated) {
-          report.push(`❌ ${account.email} ${server.id} 未找到`);
-        } else if (updated.status === server.status) {
-          report.push(`⚠️ ${account.email} ${server.id} ${action}无变化`);
-        } else {
+       if (!updated) {
+       report.push(`❌ ${account.email} ${server.id} 未找到`);
+       } else if (
+        updated.status === "STARTING" ||
+        updated.status === "RUNNING"
+       ) {
+       report.push(`✅ ${account.email} ${server.id} 重启成功`);
+       } else {
+        report.push(`⚠️ ${account.email} ${server.id} 无变化`);
+        }else {
           report.push(`✅ ${account.email} ${server.id} ${action}成功`);
         }
 
