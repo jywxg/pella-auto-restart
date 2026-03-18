@@ -85,7 +85,7 @@ async function getServers(token) {
 // ===== 启动 =====
 async function startServer(token, serverId) {
   const form = new FormData();
-  form.append("id", serverId); // 🔥 正确参数
+  form.append("id", serverId);
 
   const res = await fetch("https://api.pella.app/server/start", {
     method: "POST",
@@ -106,7 +106,7 @@ async function startServer(token, serverId) {
 // ===== 重启 =====
 async function restartServer(token, serverId) {
   const form = new FormData();
-  form.append("id", serverId); // 🔥 正确参数
+  form.append("id", serverId);
 
   const res = await fetch("https://api.pella.app/server/redeploy", {
     method: "POST",
@@ -145,11 +145,11 @@ async function processAccount(account) {
       try {
         let action;
 
-        if (server.status === "OFFLINE") {
-          action = "start";
+        if (server.status === "offline" || server.status === "OFFLINE") {
+          action = "启动";
           await startServer(token, server.id);
         } else {
-          action = "restart";
+          action = "重启";
           await restartServer(token, server.id);
         }
 
@@ -163,26 +163,61 @@ async function processAccount(account) {
 
         console.log("🧪 操作后状态:", updated?.status);
 
+        let resultText = "";
+        let finalStatus = updated?.status || "未知";
+
         if (!updated) {
-          report.push(`❌ ${account.email} ${server.id} 未找到`);
-        } else if (
-          updated.status === "STARTING" ||
-          updated.status === "RUNNING"
-        ) {
-          report.push(`✅ ${account.email} ${server.id} ${action}成功`);
+          resultText = "未找到";
+        } else if (updated.status !== server.status) {
+          resultText = action + "成功";
         } else {
-          report.push(`⚠️ ${account.email} ${server.id} 无变化`);
+          resultText = "无变化";
         }
+
+        // ===== TG格式 =====
+        report.push(
+`📋 <b>PellaFree 重启报告</b>
+
+账号: ${account.email}
+运行中 | IP: ${server.ip}
+当前状态: ${server.status}
+操作后状态: ${finalStatus}
+本次: ${resultText}
+
+────────────────────
+PellaFree Auto Restart`
+        );
 
       } catch (e) {
         console.log("❌ 操作异常:", e.message);
-        report.push(`❌ ${account.email} ${server.id} 操作失败`);
+
+        report.push(
+`📋 <b>PellaFree 重启报告</b>
+
+账号: ${account.email}
+运行中 | IP: ${server.ip}
+当前状态: ${server.status}
+操作后状态: 失败
+本次: 操作异常
+
+────────────────────
+PellaFree Auto Restart`
+        );
       }
     }
 
   } catch (err) {
     console.log("❌ 总错误:", err.message);
-    report.push(`❌ ${account.email} 登录失败: ${err.message}`);
+
+    report.push(
+`📋 <b>PellaFree 重启报告</b>
+
+账号: ${account.email}
+本次: 登录失败
+
+────────────────────
+PellaFree Auto Restart`
+    );
   }
 
   return report;
@@ -208,7 +243,7 @@ async function processAccount(account) {
     finalReport.push(...res);
   }
 
-  const msg = "🔔 <b>Pella 自动化报告</b>\n\n" + finalReport.join("\n");
+  const msg = finalReport.join("\n\n");
 
   console.log(msg);
   await sendTG(msg);
