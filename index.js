@@ -25,18 +25,14 @@ async function sendTG(msg) {
 async function login(email, password) {
   const BASE = "https://clerk.pella.app/v1/client";
 
-  const headers = {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "Origin": "https://www.pella.app",
-    "Referer": "https://www.pella.app/",
-    "User-Agent": "Mozilla/5.0"
-  };
-
-  console.log(`🔐 登录: ${email}`);
-
   const res = await fetch(`${BASE}/sign_ins`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://www.pella.app",
+      "Referer": "https://www.pella.app/",
+      "User-Agent": "Mozilla/5.0"
+    },
     body: new URLSearchParams({
       identifier: email,
       password: password,
@@ -52,10 +48,6 @@ async function login(email, password) {
 
   const data = JSON.parse(text);
 
-  if (data.errors) {
-    throw new Error(JSON.stringify(data.errors));
-  }
-
   const token =
     data.client?.sessions?.[0]?.last_active_token?.jwt;
 
@@ -69,20 +61,34 @@ async function login(email, password) {
 // ===== 获取服务器 =====
 async function getServers(token) {
   const res = await fetch("https://api.pella.app/user/servers", {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
+    headers: { Authorization: `Bearer ${token}` }
   });
 
   const text = await res.text();
   console.log("📦 server/list:", text.slice(0, 200));
 
-  const data = JSON.parse(text);
-
-  return data.servers || [];
+  return JSON.parse(text).servers || [];
 }
 
-// ===== 重启（唯一操作）=====
+// ===== stop =====
+async function stopServer(token, serverId) {
+  const res = await fetch("https://api.pella.app/server/stop", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Origin: "https://www.pella.app"
+    },
+    body: JSON.stringify({ id: serverId })
+  });
+
+  const text = await res.text();
+  console.log("⛔ stop返回:", text);
+
+  return res.ok;
+}
+
+// ===== restart =====
 async function restartServer(token, serverId) {
   const form = new FormData();
   form.append("id", serverId);
@@ -115,21 +121,32 @@ async function processAccount(account) {
 
     const servers = await getServers(token);
 
-    console.log("📊 服务器数量:", servers.length);
-
     for (const server of servers) {
       console.log("\n👉 处理:", server.id);
       console.log("   当前状态:", server.status);
 
       try {
-        // 🔥 统一使用 restart
-        await restartServer(token, server.id);
+        let action = "";
 
-        // ===== 等待执行 =====
+        // ===== 核心逻辑 =====
+        if (server.status.toLowerCase() === "running") {
+          action = "停止+重启";
+
+          await stopServer(token, server.id);
+
+          console.log("⏳ 等待5秒(stop)...");
+          await new Promise(r => setTimeout(r, 5000));
+
+          await restartServer(token, server.id);
+
+        } else {
+          action = "重启";
+          await restartServer(token, server.id);
+        }
+
         console.log("⏳ 等待15秒...");
         await new Promise(r => setTimeout(r, 15000));
 
-        // ===== 再查状态 =====
         const newServers = await getServers(token);
         const updated = newServers.find(s => s.id === server.id);
 
@@ -151,7 +168,6 @@ async function processAccount(account) {
           resultText = "无变化";
         }
 
-        // ===== TG格式 =====
         report.push(
 `📋 <b>PellaFree 重启报告</b>
 
@@ -159,7 +175,7 @@ async function processAccount(account) {
 运行中 | IP: ${server.ip}
 当前状态: ${server.status}
 操作后状态: ${finalStatus}
-本次: ${resultText}
+本次: ${action} → ${resultText}
 
 ────────────────────
 PellaFree Auto Restart`
@@ -172,10 +188,8 @@ PellaFree Auto Restart`
 `📋 <b>PellaFree 重启报告</b>
 
 账号: ${account.email}
-运行中 | IP: ${server.ip}
 当前状态: ${server.status}
-操作后状态: 失败
-本次: 操作异常
+本次: 操作失败
 
 ────────────────────
 PellaFree Auto Restart`
@@ -184,8 +198,6 @@ PellaFree Auto Restart`
     }
 
   } catch (err) {
-    console.log("❌ 总错误:", err.message);
-
     report.push(
 `📋 <b>PellaFree 重启报告</b>
 
