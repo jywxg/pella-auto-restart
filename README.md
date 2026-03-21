@@ -40,10 +40,15 @@ email2-----password2
 确保你的 .github/workflows/pella-restart.yml 包含以下触发器：
 
 YAML
+
 on:
+
   workflow_dispatch:   # 手动触发
+  
   repository_dispatch: # 远程触发接口
+  
     types: [pella-restart-event]
+    
 🌐 远程触发 (Cloudflare Workers)
 你可以部署一个 Cloudflare Worker 来实现“一键重启”或对接其他 Webhook。
 
