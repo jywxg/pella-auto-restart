@@ -15,9 +15,13 @@ CF Worker 集成：通过简单的 API 调用即可随时随地重启服务。
 在你的 GitHub 仓库中，前往 Settings > Secrets and variables > Actions，添加以下环境变量：
 
 变量名	说明
+
 TG_BOT_TOKEN	Telegram 机器人的 Token
+
 TG_CHAT_ID	接收通知的 Telegram 会话 ID
+
 ACCOUNT_JSON	账号信息的 JSON 字符串
+
 GH_PAT	(可选) 具有 Actions 权限的个人访问令牌（用于远程触发）
 
 
