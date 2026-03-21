@@ -63,9 +63,27 @@ try {
     await page.waitForTimeout(10000);
 
     // ===== 8. 抓取所有 renew 链接 =====
-    const links = await page.$$eval("a[href*='/renew/']", els =>
-      els.map(e => e.href)
-    );
+const buttons = page.locator("button");
+
+const count = await buttons.count();
+
+let claimCount = 0;
+
+for (let i = 0; i < count; i++) {
+  const btn = buttons.nth(i);
+  const text = await btn.innerText();
+
+  if (text.includes("Claim")) {
+    claimCount++;
+
+    console.log("👉 点击:", text);
+
+    await btn.click();
+    await page.waitForTimeout(8000);
+  }
+}
+
+console.log("🎯 实际点击广告:", claimCount);
 
     const uniqueLinks = [...new Set(links)];
 
@@ -88,6 +106,15 @@ try {
       } catch (e) {
         console.log("❌ 访问失败");
       }
+      const [newPage] = await Promise.all([
+  context.waitForEvent('page'),
+  btn.click()
+]);
+
+await newPage.waitForLoadState();
+await newPage.waitForTimeout(8000);
+
+await newPage.close();
 
       await newPage.close();
       await page.waitForTimeout(3000);
